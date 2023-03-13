@@ -8,10 +8,13 @@ HANDINDIR = /afs/cs.cmu.edu/academic/class/15213-f01/malloclab/handin
 CC = gcc
 CFLAGS = -Wall -O2 -m32
 
+# 定义 DEBUG 宏，以控制是否启用调试代码
+DEBUG = -DDEBUG_OUT
+
 OBJS = mdriver.o mm.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
 
 mdriver: $(OBJS)
-	$(CC) $(CFLAGS) -o mdriver $(OBJS)
+	$(CC) $(CFLAGS) $(DEBUG) -o mdriver $(OBJS)
 
 mdriver.o: mdriver.c fsecs.h fcyc.h clock.h memlib.h config.h mm.h
 memlib.o: memlib.c memlib.h
@@ -26,5 +29,4 @@ handin:
 
 clean:
 	rm -f *~ *.o mdriver
-
 

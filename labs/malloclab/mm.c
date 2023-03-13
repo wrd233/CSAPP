@@ -17,6 +17,7 @@
 
 #include "mm.h"
 #include "memlib.h"
+#include "macro.h"
 
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
@@ -49,6 +50,7 @@ team_t team = {
  */
 int mm_init(void)
 {
+    mm_check();
     return 0;
 }
 
