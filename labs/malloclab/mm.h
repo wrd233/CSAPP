@@ -11,6 +11,10 @@ int mm_check(void);
 static void *extend_heap(size_t words);
 /* 合并空闲块的函数 */
 static void *coalesce(void *bp);
+// 实现块的放置策略
+static void *find_fit(size_t asize);
+// 实现块的分割策略
+static void place(void *bp, size_t asize);
 
 /* 
  * Students work in teams of one or two.  Teams enter their team name, 

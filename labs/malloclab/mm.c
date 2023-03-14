@@ -60,7 +60,7 @@ team_t team = {
 #define GET(p) (*(unsigned int *)(p))
 #define PUT(p, val) (*(unsigned int *)(p) = (val))
 
-// 定义宏函数，从地址p读取块的大小和已分配标志
+// 定义宏函数，从地址p读取块的大小和已分配标志(注：此处的p理应指向块的起始地址，而非块的有效载荷)
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
 
@@ -94,7 +94,7 @@ int mm_init(void)
     // 扩展空堆的大小，增加一个 CHUNKSIZE 大小的初始空闲块
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
         return -1;
-            
+
     return 0;
 }
 
@@ -155,14 +155,42 @@ static void *coalesce(void *bp)
  */
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
+    /*原始代码*/
+    // int newsize = ALIGN(size + SIZE_T_SIZE);   // 调整请求的内存大小为 ALIGNMENT 的倍数，并加上一个字节的头部大小
+    // void *p = mem_sbrk(newsize);    // 通过调用 mem_sbrk 函数分配内存
+    // if (p == (void *)-1)   // 如果 mem_sbrk 分配失败，返回 NULL
+    //     return NULL;
+    // else {
+    //     *(size_t *)p = size;   // 写入块的大小信息，存放在第一个字节中
+    //     return (void *)((char *)p + SIZE_T_SIZE);  // 返回内存块的地址，跳过头部字节，因为返回的指针是指向有效载荷的
+    // }
+
+  	size_t asize; // 调整后的块大小  
+  	size_t extendsize; // 需要扩展堆的大小  
+  	char *bp;
+
+  	// 忽略无意义的请求
+	if (size == 0)
+    	return NULL;
+
+  	/* 调整块大小以包括开销和对齐要求 */
+  	if (size <= DSIZE)
+    	asize = 2*DSIZE ;  
+  	else  
+    	asize = DSIZE * ((size+ (DSIZE) + (DSIZE-1)) / DSIZE) ;  
+
+  	// 在空闲块中查找合适的块  
+  	if ( (bp = find_fit (asize)) != NULL) {  
+    	place(bp, asize);  
+    	return bp;  
+  	}  
+
+  	// 如果找不到合适的块，则需要扩展堆  
+  	extendsize = MAX(asize,CHUNKSIZE);  
+  	if ( (bp = extend_heap (extendsize/WSIZE)) == NULL)  
+    	return NULL;  
+  	place(bp, asize);  
+  	return bp;  
 }
 
 /*
@@ -170,6 +198,12 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
+    size_t size = GET_SIZE(HDRP(ptr)); // 获取当前块的大小
+
+    PUT(HDRP(ptr), PACK(size, 0)); // 设置头部为未分配状态
+    PUT(FTRP(ptr), PACK(size, 0)); // 设置尾部为未分配状态
+
+    coalesce(ptr); // 合并空闲块
 }
 
 /*
@@ -202,6 +236,33 @@ int mm_check(void){
     return 0;
 }
 
+// 实现块的放置策略
+static void *find_fit(size_t asize){
+    // 策略:遍历隐式空闲链表，找到第一个能够放下这个的块
+    for(void* tmp=heap_listp; GET_SIZE(tmp-WSIZE)>0; tmp=NEXT_BLKP(tmp)){
+        // 如果已分配，那么跳过
+        if(GET_ALLOC(tmp-WSIZE)){
+            continue;
+        }
+        // 如果未分配，但有效荷载不足，那么跳过
+        if(GET_SIZE(tmp-WSIZE)<asize){
+            continue;
+        }
+        // 确定第一个可用的空闲块，将alloc置位
+        PUT(HDRP(tmp), PACK(GET_SIZE(tmp-WSIZE), 1));             // 空闲块头部
+        PUT(FTRP(tmp), PACK(GET_SIZE(tmp-WSIZE), 1));             // 空闲块尾部
+        // 返回第一个可用的空闲块
+        return tmp;
+    }
+
+    return NULL;
+}
+
+// 实现块的分割策略
+static void place(void *bp, size_t asize){
+    // 策略:不分割，使用整个空闲块
+    return bp;
+}
 
 
 
