@@ -5,8 +5,12 @@ extern void *mm_malloc (size_t size);
 extern void mm_free (void *ptr);
 extern void *mm_realloc(void *ptr, size_t size);
 
-
-
+// 调试代码
+int mm_check(void);
+// 扩展堆并返回指向新空闲块的指针
+static void *extend_heap(size_t words);
+/* 合并空闲块的函数 */
+static void *coalesce(void *bp);
 
 /* 
  * Students work in teams of one or two.  Teams enter their team name, 
